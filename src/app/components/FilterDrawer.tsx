@@ -5,8 +5,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { X } from 'lucide-react';
 
 type FilterDrawerProps = {
-  orders: string[]
-  classes: string[]
+  taxonomies: {
+    orders: string[]
+    classes: string[]
+  }
   onFilterChange: (type: 'order' | 'class', value: string | null) => void
   activeFilter: { type: 'order' | 'class', value: string } | null
   onClose: () => void
@@ -14,8 +16,7 @@ type FilterDrawerProps = {
 }
 
 export function FilterDrawer({ 
-  orders, 
-  classes, 
+  taxonomies, 
   onFilterChange, 
   activeFilter, 
   onClose, 
@@ -98,7 +99,7 @@ export function FilterDrawer({
             >
               All Orders
             </Button>
-            {orders.map((order) => (
+            {taxonomies.orders.map((order) => (
               <Button
                 key={order}
                 variant="ghost"
@@ -118,7 +119,7 @@ export function FilterDrawer({
             >
               All Classes
             </Button>
-            {classes.map((cls) => (
+            {taxonomies.classes.map((cls) => (
               <Button
                 key={cls}
                 variant="ghost"

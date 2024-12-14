@@ -10,8 +10,13 @@ interface FilterParams {
   value: string;
 }
 
+interface PageParam {
+  pageIndex: number;
+}
+
 export const queryKeys = {
   insects: ['insects'] as const,
+  insectsPaginated: (filter: FilterParams | null) => ['insects', 'paginated', filter] as const,
   insect: (slug: string) => ['insect', slug] as const,
 };
 
@@ -31,41 +36,62 @@ export const useAllInsects = () => {
       }`;
       return client.fetch(query);
     },
-    staleTime: 1000 * 60 * 60 * 24, // 24 hours
+    staleTime: 1000 * 60 * 60 * 24,
     gcTime: 1000 * 60 * 60 * 24,
   });
 };
 
 export const useInsectsPaginated = (filter: FilterParams | null) => {
-  const { data: allInsects = [], isLoading } = useAllInsects();
-  
+  const { data: allInsects = [], isLoading: allInsectsLoading } = useAllInsects();
+
   // Apply filter to all insects
   const filteredInsects = useMemo(() => {
     return filter
-    ? allInsects.filter((insect: { [x: string]: string; }) => insect[filter.type] === filter.value)
-    : allInsects;
+      ? allInsects.filter((insect: { [x: string]: string }) => insect[filter.type] === filter.value)
+      : allInsects;
   }, [filter, allInsects]);
 
-  // Calculate total pages
-  const totalPages = Math.ceil(filteredInsects.length / ITEMS_PER_PAGE);
-  const totalCount = filteredInsects.length;
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: paginationLoading,
+  } = useInfiniteQuery({
+    queryKey: queryKeys.insectsPaginated(filter),
+    queryFn: async ({ pageParam = { pageIndex: 0 } }) => {
+      const start = pageParam.pageIndex * ITEMS_PER_PAGE;
+      return {
+        insects: filteredInsects.slice(start, start + ITEMS_PER_PAGE),
+        nextPage: start + ITEMS_PER_PAGE < filteredInsects.length 
+          ? { pageIndex: pageParam.pageIndex + 1 }
+          : undefined
+      };
+    },
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+    initialPageParam: { pageIndex: 0 }, // 🔥 Key fix to TypeScript error
+    enabled: !allInsectsLoading,
+  });
 
-  // Function to get insects for a specific page
-  const getPageInsects = (pageIndex: number) => {
-    const start = pageIndex * ITEMS_PER_PAGE;
-    return filteredInsects.slice(start, start + ITEMS_PER_PAGE);
-  };
+  const flattenedInsects = useMemo(() => {
+    return data?.pages.flatMap(page => page.insects) ?? [];
+  }, [data]);
+
+  const totalCount = filteredInsects.length;
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
   return {
-    insects: filteredInsects,
-    isLoading,
+    insects: flattenedInsects,
+    isLoading: allInsectsLoading || paginationLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
     totalCount,
-    totalPages,
-    getPageInsects,
+    totalPages
   };
 };
 
-// Hook for individual insect details
+// Hook for individual insect details remains the same
 export const useInsect = (slug: string) => {
   const queryClient = useQueryClient();
   
@@ -84,7 +110,6 @@ export const useInsect = (slug: string) => {
       return client.fetch(query, { slug });
     },
     initialData: () => {
-      // Try to find the insect in the main cache
       const cachedInsects = queryClient.getQueryData<Insect[]>(queryKeys.insects);
       return cachedInsects?.find(insect => insect.slug.current === slug);
     },
