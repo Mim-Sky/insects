@@ -10,7 +10,7 @@ interface FilterParams {
 }
 
 export const useInsectsPaginated = (filter: FilterParams | null) => {
-  const fetchInsects = async ({ pageParam = 0 }: { pageParam: number }) => {
+  const fetchInsects = async ({ pageParam = 0 }) => {
     const start = pageParam * ITEMS_PER_PAGE;
     const filterQuery = filter 
       ? `&& ${filter.type}->name == "${filter.value}"`
@@ -39,24 +39,25 @@ export const useInsectsPaginated = (filter: FilterParams | null) => {
     hasNextPage,
     isFetchingNextPage,
     isFetching
-  } = useInfiniteQuery<Insect[], Error>({
+  } = useInfiniteQuery<Insect[], unknown>(
     queryKey,
-    queryFn: ({ pageParam = 0 }: { pageParam: number }) => fetchInsects({ pageParam }),
-    getNextPageParam: (lastPage, allPages) => 
-      lastPage.length < ITEMS_PER_PAGE ? undefined : allPages.length,
-    staleTime: 1000 * 60 * 60 * 24, 
-    refetchOnWindowFocus: false,
-    initialPageParam: 0,
-  });
+    ({ pageParam }) => fetchInsects({ pageParam }),
+    {
+      getNextPageParam: (lastPage, allPages) => lastPage.length < ITEMS_PER_PAGE ? undefined : allPages.length,
+      staleTime: 1000 * 60 * 60 * 24, // Cache for 24 hours
+      refetchOnWindowFocus: false,
+    }
+  );
 
-  const insects: Insect[] = data?.pages.flat() ?? [];
+  // Flatten the paginated response
+  const insects = data ? data.pages.flat() : [];
 
-  return { 
-    insects, 
-    isLoading, 
-    fetchNextPage, 
-    hasNextPage, 
-    isFetchingNextPage, 
-    isFetching 
+  return {
+    insects,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isFetching
   };
 };
