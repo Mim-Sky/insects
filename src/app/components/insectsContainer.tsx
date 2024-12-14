@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useInsectsPaginated } from "../hooks/useInsects";
 import { useTaxonomies } from "../hooks/useTaxonomies";
 import Card from './ui/card';
@@ -15,6 +15,7 @@ import { ImSpinner2 } from "react-icons/im";
 const Insects = () => {
   const [activeFilter, setActiveFilter] = useState<{ type: 'order' | 'class', value: string } | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const initialInsectsRef = useRef<any[]>([]);
 
   console.log('Component render: Insects');
 
@@ -32,6 +33,14 @@ const Insects = () => {
   const { data: taxonomies = { orders: [], classes: [] }, isLoading: taxonomiesLoading } = useTaxonomies();
   console.log('useTaxonomies hook state:', { taxonomies, taxonomiesLoading });
 
+  // Cache the initial set of insects when there is no active filter
+  useEffect(() => {
+    if (!activeFilter && insects.length && !initialInsectsRef.current.length) {
+      initialInsectsRef.current = insects;
+      console.log('Stored initial insects data', initialInsectsRef.current);
+    }
+  }, [insects, activeFilter]);
+
   useEffect(() => {
     console.log('Effect: Attaching popstate listener');
     const handlePopState = () => {
@@ -45,7 +54,7 @@ const Insects = () => {
         console.log('Popstate filter set:', { type: filterType, value: filterValue });
         setActiveFilter({ type: filterType, value: filterValue });
       } else {
-        console.log('Popstate cleared filter');
+        console.log('Popstate cleared filter, restoring initial insects');
         setActiveFilter(null);
       }
     };
@@ -131,8 +140,7 @@ const Insects = () => {
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {insects.map((insect) => (
-                console.log('Rendering insect card:', insect),
+              {(activeFilter ? insects : initialInsectsRef.current.length ? initialInsectsRef.current : insects).map((insect) => (
                 <Card
                   key={insect._id}
                   imageUrl={insect.image ? urlFor(insect.image).width(330).height(330).url() : '/zombie.webp'}
@@ -143,18 +151,6 @@ const Insects = () => {
                 />
               ))}
             </div>
-            
-            {hasNextPage && (
-              <div className="mt-8 flex justify-center">
-                <Button
-                  onClick={() => { console.log('Fetching next page'); fetchNextPage(); }}
-                  variant="outline"
-                  disabled={isFetchingNextPage}
-                >
-                  {isFetchingNextPage ? 'Loading more...' : `Show More (${insects.length}/${totalCount})`}
-                </Button>
-              </div>
-            )}
           </>
         )}
       </ScrollArea>
