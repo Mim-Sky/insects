@@ -1,6 +1,9 @@
 import client, { urlFor } from "@/sanityClient";
 import { Insect } from "@/sanity/types/types";
 import Image from "next/image";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 interface InsectDetailsProps {
   params: Promise<{
@@ -8,7 +11,6 @@ interface InsectDetailsProps {
   }>;
 }
 
-// Generate static paths for dynamic routes
 export async function generateStaticParams() {
   const insects = await client.fetch<{ slug: { current: string } }[]>(
     `*[_type == "insect"]{ "slug": slug.current }`
@@ -19,62 +21,66 @@ export async function generateStaticParams() {
   }));
 }
 
-// Dynamic Insect Details Page
 const InsectDetails = async ({ params }: InsectDetailsProps) => {
-  // Await params to resolve the slug
   const { slug } = await params;
 
   if (!slug) {
-    return <div>Invalid route</div>;
+    return <div className="text-center p-8 text-2xl text-red-600">Invalid route</div>;
   }
 
   const insect = await client.fetch<Insect>(
     `*[_type == "insect" && slug.current == $slug][0]{
       title,
       description,
-      image
+      image,
+      latinTitle,
+      
     }`,
     { slug }
   );
 
   if (!insect) {
-    return <div>404 - Insect Not Found</div>;
+    return <div className="text-center p-8 text-2xl text-red-600">404 - Insect Not Found</div>;
   }
 
   return (
-    <div>
-      {/* Hero Section */}
-      <div
-        className="relative md:bg-fixed bg-center bg-cover h-96 md:h-[600px] before:absolute before:inset-0 before:bg-black before:opacity-40 mb-6 md:mb-12"
-        style={{
-          backgroundImage: `url(${urlFor(insect.image).url()})`,
-        }}
-      >
-        <h1 className="absolute top-3/4 md:top-1/2 bg-black/80 text-off-white text-3xl text-bold px-3 py-5">
-          {insect.title}
-        </h1>
-      </div>
-
-      {/* Content Section */}
-      <div className="container w-full mx-auto flex flex-col lg:grid lg:grid-cols-2 gap-6 lg:grid-rows-3 p-3 lg:p-0">
-        {/* Description */}
-        <div className="grid-element-2 bg-off-white p-6">
-          <p>{insect.description}</p>
-        </div>
-
-        {/* Image */}
-        <div className="grid-element-3 bg-earth-gray flex items-center justify-center">
-          <Image
-            src={urlFor(insect.image).url()}
-            alt={insect.title}
-            width={500}
-            height={500}
-            className="rounded shadow-lg"
-          />
-        </div>
+    <div className="min-h-screen bg-gradient-to-b from-green-50 to-green-100">
+      <div className="container mx-auto px-4 py-8">
+        <Card className="overflow-hidden shadow-xl">
+          <div className="relative h-64 sm:h-80 md:h-96">
+            <Image
+              src={urlFor(insect.image).url()}
+              alt={insect.title}
+              layout="fill"
+              objectFit="cover"
+              className="transition-transform duration-300 hover:scale-105"
+            />
+            <div className="absolute inset-0 bg-black bg-opacity-40 flex items-end">
+              <CardHeader className="text-white">
+                <CardTitle className="text-3xl font-bold">{insect.title}</CardTitle>
+                {insect.latinTitle && (
+                  <p className="text-lg italic">{insect.latinTitle}</p>
+                )}
+              </CardHeader>
+            </div>
+          </div>
+          <CardContent className="p-6">
+            {/* <div className="flex flex-wrap gap-2 mb-4">
+              {insect.habitat && (
+                <Badge variant="secondary">Habitat: {insect.habitat}</Badge>
+              )}
+              {insect.diet && (
+                <Badge variant="secondary">Diet: {insect.diet}</Badge>
+              )}
+            </div> */}
+            <Separator className="my-4" />
+            <p className="text-gray-700 leading-relaxed">{insect.description}</p>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
 };
 
 export default InsectDetails;
+
